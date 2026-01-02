@@ -2,6 +2,7 @@ package server
 
 import "fmt"
 import (
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"printer-agent/models"
@@ -40,6 +41,7 @@ func Start() {
 		fmt.Println(req.PrinterID)
 
 		data := printer.BuildEscPos(req.Content, req.Cut)
+
 		if err := printer.Print(req.PrinterID, data); err != nil {
 			http.Error(w, err.Error(), 500)
 			return
@@ -47,6 +49,37 @@ func Start() {
 
 		w.Write([]byte("printed"))
 	})
+
+
+	http.HandleFunc("/print/raw", func(w http.ResponseWriter, r *http.Request) {
+		var req models.RawPrintRequest
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		if req.PrinterID == "" || req.Data == "" {
+			http.Error(w, "printerId and data are required", http.StatusBadRequest)
+			return
+		}
+
+		// Decode base64 → []byte
+		raw, err := base64.StdEncoding.DecodeString(req.Data)
+		if err != nil {
+			http.Error(w, "invalid base64 data", http.StatusBadRequest)
+			return
+		}
+
+		// Directly write bytes to printer
+		if err := printer.Print(req.PrinterID, raw); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Write([]byte("printed"))
+	})
+
 
 	http.HandleFunc("/bluetooth/devices", func(w http.ResponseWriter, _ *http.Request) {
 		devices, err := printer.DiscoverBluetooth()
