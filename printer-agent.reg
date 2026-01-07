@@ -1,0 +1,12 @@
+Windows Registry Editor Version 5.00
+
+[HKEY_CLASSES_ROOT\aharsuchi-printer]
+@="URL:Aharsuchi Printer Protocol"
+"URL Protocol"=""
+
+[HKEY_CLASSES_ROOT\aharsuchi-printer\shell]
+
+[HKEY_CLASSES_ROOT\aharsuchi-printer\shell\open]
+
+[HKEY_CLASSES_ROOT\aharsuchi-printer\shell\open\command]
+@="\"C:\\Program Files\\Aharsuchi\\printer-agent.exe\" \"%1\""
