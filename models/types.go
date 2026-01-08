@@ -1,5 +1,10 @@
 package models
 
+import (
+	"os"
+	"sync"
+)
+
 type PrinterType string
 
 const (
@@ -20,4 +25,10 @@ type PrintRequest struct {
 	PrinterID string `json:"printerId"`
 	Content   string `json:"content"`
 	Cut       bool   `json:"cut"`
+}
+
+type BluetoothPrinter struct {
+	Path string
+	File *os.File
+	Mu   sync.Mutex
 }

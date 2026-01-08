@@ -99,5 +99,23 @@ func Start() {
 	mux.HandleFunc("/print/raw", rawPrint)
 	mux.HandleFunc("/bluetooth/devices", deviceList)
 
-	http.ListenAndServe("127.0.0.1:9123", withCORS(mux))
+	server := &http.Server{
+		Addr:    "127.0.0.1:9123",
+		Handler: withCORS(mux),
+	}
+
+	fmt.Println("Printer agent running on https://127.0.0.1:9123")
+
+	err := server.ListenAndServeTLS(
+		"./certs/cert.pem",
+		"./certs/cert-key.pem",
+	)
+	// err := server.ListenAndServeTLS(
+	// 	"C:\\Program Files\\Aharsuchi\\certs\\cert.pem",
+	// 	"C:\\Program Files\\Aharsuchi\\certs\\cert-key.pem",
+	// )
+
+	if err != nil {
+		panic(err)
+	}
 }
