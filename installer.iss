@@ -28,3 +28,6 @@ Filename: "{app}\printer-agent.exe"; Flags: nowait runhidden
 Root: HKLM; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; \
   ValueType: string; ValueName: "AharsuchiPrinterAgent"; \
   ValueData: """{app}\printer-agent.exe"""; Flags: uninsdeletevalue
+
+[UninstallDelete]
+Type: files; Name: "{app}\printer-agent.exe"

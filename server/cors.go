@@ -5,18 +5,16 @@ import "net/http"
 func withCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		// origin := r.Header.Get("Origin")
+		origin := r.Header.Get("Origin")
+		if origin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Vary", "Origin")
+		} else {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+		}
 
-		// Allow ONLY your admin portal
-		// if origin == "https://admin.aharsuchi.com" {
-		// 	w.Header().Set("Access-Control-Allow-Origin", origin)
-		// 	w.Header().Set("Vary", "Origin")
-		// }
-
-		w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
-
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, x-requested-with")
 
 		// 🔴 REQUIRED FOR PRIVATE NETWORK ACCESS
 		w.Header().Set("Access-Control-Allow-Private-Network", "true")
