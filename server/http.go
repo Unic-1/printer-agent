@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
+	"path/filepath"
 
 	"printer-agent/models"
 	"printer-agent/printer"
@@ -88,8 +89,10 @@ func deviceList(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(devices)
 }
 
-
-func Start() {
+// NewServer builds and returns the HTTP server and resolved cert paths
+// without starting it. The caller is responsible for calling
+// server.ListenAndServeTLS(certFile, keyFile) — typically in a goroutine.
+func NewServer(certDir string) (srv *http.Server, certFile string, keyFile string) {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/health", health)
@@ -99,23 +102,13 @@ func Start() {
 	mux.HandleFunc("/print/raw", rawPrint)
 	mux.HandleFunc("/bluetooth/devices", deviceList)
 
-	server := &http.Server{
+	srv = &http.Server{
 		Addr:    "127.0.0.1:9123",
 		Handler: withCORS(mux),
 	}
 
-	fmt.Println("Printer agent running on https://127.0.0.1:9123")
+	certFile = filepath.Join(certDir, "cert.pem")
+	keyFile = filepath.Join(certDir, "cert-key.pem")
 
-	err := server.ListenAndServeTLS(
-		"./certs/cert.pem",
-		"./certs/cert-key.pem",
-	)
-	// err := server.ListenAndServeTLS(
-	// 	"C:\\Program Files\\Aharsuchi\\certs\\cert.pem",
-	// 	"C:\\Program Files\\Aharsuchi\\certs\\cert-key.pem",
-	// )
-
-	if err != nil {
-		panic(err)
-	}
+	return srv, certFile, keyFile
 }
