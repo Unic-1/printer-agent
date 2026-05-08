@@ -6,7 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
+	// "path/filepath"
 	"time"
 
 	"github.com/kardianos/service"
@@ -28,8 +28,9 @@ func (p *program) Start(s service.Service) error {
 
 	// Resolve cert directory relative to the executable location.
 	// This is critical because Windows Services run with CWD = C:\Windows\System32.
-	exeDir := server.ExeDir()
-	certDir := filepath.Join(exeDir, "certs")
+	// exeDir := server.ExeDir()
+	// certDir := filepath.Join(exeDir, "certs")
+	certDir := os.Getenv("CERT_PATH")
 
 	p.srv, p.certFile, p.keyFile = server.NewServer(certDir)
 

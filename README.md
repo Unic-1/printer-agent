@@ -7,6 +7,8 @@ Local HTTPS printer agent for Aharsuchi POS. Runs as a **Windows Service** that 
 ```bash
 # Run interactively (foreground, for debugging)
 go run . run
+--- or ---
+CERT_PATH=./certs go run main.go
 ```
 
 ## Build for Windows
@@ -38,6 +40,7 @@ printer-agent.exe run
 ```
 
 After installation, the service:
+
 - Appears in `services.msc` as **"Aharsuchi Printer Agent"**
 - Starts automatically on boot (delayed auto-start)
 - Auto-restarts within 10 seconds if it crashes
@@ -54,6 +57,7 @@ docker run --rm -i -v "$PWD:/work" amake/innosetup installer.iss
 ```
 
 The installer will:
+
 1. Install the executable and certs to `C:\Program Files\Aharsuchi\`
 2. Install the root CA certificate to the Windows trust store
 3. Register and start the Windows Service
@@ -80,11 +84,13 @@ GOOS=linux GOARCH=amd64 go build -o build/printer-agent
 ## Troubleshooting
 
 **Mac Bluetooth issue** — if printing fails after process restart:
+
 ```bash
 sudo pkill bluetoothd
 ```
 
 **Windows Service won't start** — check Windows Event Viewer:
+
 1. Open Event Viewer (`eventvwr.msc`)
 2. Navigate to: Windows Logs → Application
 3. Filter by source: `AharsuchiPrinterAgent`
