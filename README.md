@@ -81,6 +81,41 @@ GOOS=darwin GOARCH=amd64 go build -o build/printer-agent
 GOOS=linux GOARCH=amd64 go build -o build/printer-agent
 ```
 
+## API
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/health` | Health check |
+| GET | `/printers` | List all registered printers |
+| GET | `/printers/registered` | Same as `/printers` |
+| POST | `/printers/register` | Register a printer |
+| POST | `/print` | Print formatted receipt content |
+| POST | `/print/raw` | Print raw ESC/POS bytes (base64) |
+| GET | `/bluetooth/devices` | Discover nearby Bluetooth printers |
+
+**List registered printers**
+
+```bash
+curl -k https://127.0.0.1:9123/printers/registered
+```
+
+Example response:
+
+```json
+{
+  "count": 1,
+  "printers": [
+    {
+      "id": "kitchen-printer",
+      "name": "Kitchen",
+      "type": "bluetooth",
+      "address": "/dev/cu.Printer001",
+      "online": false
+    }
+  ]
+}
+```
+
 ## Troubleshooting
 
 **Mac Bluetooth issue** — if printing fails after process restart:

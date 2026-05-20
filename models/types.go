@@ -17,8 +17,9 @@ const (
 
 // Printer represents a registered printer.
 // The frontend may send the printer type as either "type" or "interface" —
-// both fields are accepted. The address may contain a "bt:" prefix which
-// is stripped before use.
+// both fields are accepted. Bluetooth addresses may use a "bt:" prefix
+// (e.g. "bt:/dev/cu.Printer001"); that prefix is kept for registration and
+// print lookup and stripped only when opening the device (see BluetoothDevicePath).
 type Printer struct {
 	ID        string      `json:"id"`
 	Name      string      `json:"name"`
@@ -28,8 +29,14 @@ type Printer struct {
 	Online    bool        `json:"online"`
 }
 
+// BluetoothDevicePath returns the OS device path for a Bluetooth printer address,
+// stripping the optional "bt:" prefix used by the frontend and discovery API.
+func BluetoothDevicePath(address string) string {
+	return strings.TrimPrefix(address, "bt:")
+}
+
 // UnmarshalJSON ensures that if "type" is empty but "interface" is set,
-// "interface" is used as the printer type. Also strips "bt:" prefix from address.
+// "interface" is used as the printer type.
 func (p *Printer) UnmarshalJSON(b []byte) error {
 	// Use an alias to avoid infinite recursion
 	type PrinterAlias Printer
@@ -44,11 +51,6 @@ func (p *Printer) UnmarshalJSON(b []byte) error {
 		p.Type = p.Interface
 	}
 
-	// Strip "bt:" prefix from BT device paths (e.g. "bt:/dev/cu.Printer001" → "/dev/cu.Printer001")
-	if strings.HasPrefix(p.Address, "bt:") {
-		p.Address = strings.TrimPrefix(p.Address, "bt:")
-	}
-
 	return nil
 }
 
@@ -56,6 +58,12 @@ type PrintRequest struct {
 	PrinterID string `json:"printerId"`
 	Content   string `json:"content"`
 	Cut       bool   `json:"cut"`
+}
+
+// RegisteredPrintersResponse is returned by GET /printers and GET /printers/registered.
+type RegisteredPrintersResponse struct {
+	Count    int        `json:"count"`
+	Printers []*Printer `json:"printers"`
 }
 
 type BluetoothPrinter struct {

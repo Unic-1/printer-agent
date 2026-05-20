@@ -2,25 +2,63 @@ package printer
 
 import (
 	"errors"
+	"strings"
+
 	"printer-agent/models"
 )
 
 var printers = map[string]*models.Printer{}
 
-func RegisterPrinter(p *models.Printer) {
-	printers[p.ID] = p
+func printerKey(p *models.Printer) string {
+	if p.ID != "" {
+		return p.ID
+	}
+	return p.Address
 }
 
-func GetPrinters() []*models.Printer {
-	list := []*models.Printer{}
+// lookupKeys returns printer map keys to try for a print request id.
+// Clients register and print with "bt:/dev/cu.*" while older entries may
+// only be stored under the bare device path.
+func lookupKeys(printerID string) []string {
+	keys := []string{printerID}
+	if strings.HasPrefix(printerID, "bt:") {
+		keys = append(keys, strings.TrimPrefix(printerID, "bt:"))
+	} else if printerID != "" {
+		keys = append(keys, "bt:"+printerID)
+	}
+	return keys
+}
+
+func resolvePrinter(printerID string) (*models.Printer, bool) {
+	for _, key := range lookupKeys(printerID) {
+		if p, ok := printers[key]; ok {
+			return p, true
+		}
+	}
+	return nil, false
+}
+
+func RegisterPrinter(p *models.Printer) {
+	if p.ID == "" && p.Address != "" {
+		p.ID = p.Address
+	}
+	printers[printerKey(p)] = p
+}
+
+// ListRegistered returns all printers currently registered with the agent.
+func ListRegistered() models.RegisteredPrintersResponse {
+	list := make([]*models.Printer, 0, len(printers))
 	for _, p := range printers {
 		list = append(list, p)
 	}
-	return list
+	return models.RegisteredPrintersResponse{
+		Count:    len(list),
+		Printers: list,
+	}
 }
 
 func Print(printerID string, data []byte) error {
-	p, ok := printers[printerID]
+	p, ok := resolvePrinter(printerID)
 	if !ok {
 		return errors.New("printer not found")
 	}
@@ -31,7 +69,7 @@ func Print(printerID string, data []byte) error {
 	case models.PrinterUSB:
 		return printUSB(p.Address, data)
 	case models.PrinterBluetooth:
-		return printBluetooth(p.Address, data)
+		return printBluetooth(models.BluetoothDevicePath(p.Address), data)
 	default:
 		return errors.New("unsupported printer type")
 	}

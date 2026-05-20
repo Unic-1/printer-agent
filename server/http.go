@@ -16,8 +16,15 @@ func health(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("ok"))
 }
 
-func listPrinters(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode(printer.GetPrinters())
+func listRegisteredPrinters(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(printer.ListRegistered()); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func registerPrinter(w http.ResponseWriter, r *http.Request) {
@@ -96,7 +103,8 @@ func NewServer(certDir string) (srv *http.Server, certFile string, keyFile strin
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/health", health)
-	mux.HandleFunc("/printers", listPrinters)
+	mux.HandleFunc("/printers", listRegisteredPrinters)
+	mux.HandleFunc("/printers/registered", listRegisteredPrinters)
 	mux.HandleFunc("/printers/register", registerPrinter)
 	mux.HandleFunc("/print", print)
 	mux.HandleFunc("/print/raw", rawPrint)
