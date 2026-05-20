@@ -148,25 +148,42 @@ func DiscoverBluetooth() ([]*models.Printer, error) {
 
 
 func printBluetooth(address string, data []byte) error {
-
-	_, ok := printersConnection[address]
-	if !ok {
-		printer, err := OpenBluetoothPrinter(address)
-		if err != nil {
-			log.Fatal(err)
+	// Try cached connection first
+	if p, ok := printersConnection[address]; ok {
+		if err := PrinterBluetooth(p, data); err == nil {
+			time.Sleep(700 * time.Millisecond)
+			return nil
+		} else {
+			log.Printf("Print failed on cached connection %s: %v — reconnecting", address, err)
+			Close(p)
+			delete(printersConnection, address)
 		}
-		printersConnection[address] = printer
 	}
 
-	printer, _ := printersConnection[address]
+	// Open a fresh connection (retries with back-off for transient BT pairing delays)
+	var p *models.BluetoothPrinter
+	var openErr error
+	for attempt := 1; attempt <= 3; attempt++ {
+		p, openErr = OpenBluetoothPrinter(address)
+		if openErr == nil {
+			break
+		}
+		log.Printf("Open bluetooth printer %s attempt %d failed: %v", address, attempt, openErr)
+		if attempt < 3 {
+			time.Sleep(time.Duration(attempt) * time.Second)
+		}
+	}
+	if openErr != nil {
+		return fmt.Errorf("failed to open bluetooth printer %s after retries: %w", address, openErr)
+	}
+	printersConnection[address] = p
 
-	err := PrinterBluetooth(printer, data)
+	if err := PrinterBluetooth(p, data); err != nil {
+		Close(p)
+		delete(printersConnection, address)
+		return fmt.Errorf("print failed on %s: %w", address, err)
+	}
 
 	time.Sleep(700 * time.Millisecond)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	return nil
 }

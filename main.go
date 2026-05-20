@@ -6,7 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-	// "path/filepath"
+	"path/filepath"
 	"time"
 
 	"github.com/kardianos/service"
@@ -26,11 +26,12 @@ type program struct {
 func (p *program) Start(s service.Service) error {
 	p.logger.Info("Starting Aharsuchi Printer Agent...")
 
-	// Resolve cert directory relative to the executable location.
-	// This is critical because Windows Services run with CWD = C:\Windows\System32.
-	// exeDir := server.ExeDir()
-	// certDir := filepath.Join(exeDir, "certs")
+	// Resolve cert directory: CERT_PATH env overrides the default next to the executable.
+	// Default is required because Windows Services run with CWD = C:\Windows\System32.
 	certDir := os.Getenv("CERT_PATH")
+	if certDir == "" {
+		certDir = filepath.Join(server.ExeDir(), "certs")
+	}
 
 	p.srv, p.certFile, p.keyFile = server.NewServer(certDir)
 
