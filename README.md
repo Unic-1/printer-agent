@@ -92,6 +92,7 @@ GOOS=linux GOARCH=amd64 go build -o build/printer-agent
 | POST | `/print` | Print formatted receipt content |
 | POST | `/print/raw` | Print raw ESC/POS bytes (base64) |
 | GET | `/bluetooth/devices` | Discover nearby Bluetooth printers |
+| GET | `/usb/devices` | List USB ESC/POS printer device paths |
 
 **List registered printers**
 
@@ -117,6 +118,24 @@ Example response:
 ```
 
 ## Troubleshooting
+
+### Windows USB printer not listed (`/usb/devices` empty)
+
+Most USB thermal printers show in **Device Manager** as a printer, not as a **COM port**.
+The agent lists:
+
+1. **COM ports** (if your driver creates a virtual serial port)
+2. **USB printer ports** (`USB001`, `EUSB001`, `DOT4`, …) from `Win32_Printer`
+3. **Installed local printers** (print by name via Windows RAW spooler — address `printer:Your Printer Name`)
+
+If the list is still empty:
+
+- Install the manufacturer driver (or **Generic / Text Only**) so the printer appears under **Settings → Printers**.
+- Rebuild and restart the agent after updating.
+- Test discovery: `curl -k https://127.0.0.1:9123/usb/devices`
+- In the ops app, pick the entry that matches your printer name or `USB001` port.
+
+**Note:** `wmic` alone is not used on modern Windows; discovery uses PowerShell `Get-CimInstance`.
 
 **Mac Bluetooth issue** — if printing fails after process restart:
 

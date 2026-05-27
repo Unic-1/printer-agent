@@ -23,8 +23,10 @@ func lookupKeys(printerID string) []string {
 	keys := []string{printerID}
 	if strings.HasPrefix(printerID, "bt:") {
 		keys = append(keys, strings.TrimPrefix(printerID, "bt:"))
+	} else if strings.HasPrefix(printerID, "usb:") {
+		keys = append(keys, strings.TrimPrefix(printerID, "usb:"))
 	} else if printerID != "" {
-		keys = append(keys, "bt:"+printerID)
+		keys = append(keys, "bt:"+printerID, "usb:"+printerID)
 	}
 	return keys
 }
@@ -67,7 +69,11 @@ func Print(printerID string, data []byte) error {
 	case models.PrinterNetwork:
 		return printNetwork(p.Address, data)
 	case models.PrinterUSB:
-		return printUSB(p.Address, data)
+		addr := NormalizeUSBAddress(p.Address)
+		if addr == "" {
+			addr = NormalizeUSBAddress(p.ID)
+		}
+		return printUSB(addr, data)
 	case models.PrinterBluetooth:
 		return printBluetooth(models.BluetoothDevicePath(p.Address), data)
 	default:

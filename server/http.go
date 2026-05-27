@@ -96,6 +96,23 @@ func deviceList(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(devices)
 }
 
+func usbDeviceList(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	devices, err := printer.DiscoverUSB()
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	if devices == nil {
+		devices = []*models.Printer{}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(devices)
+}
+
 // NewServer builds and returns the HTTP server and resolved cert paths
 // without starting it. The caller is responsible for calling
 // server.ListenAndServeTLS(certFile, keyFile) — typically in a goroutine.
@@ -109,6 +126,7 @@ func NewServer(certDir string) (srv *http.Server, certFile string, keyFile strin
 	mux.HandleFunc("/print", print)
 	mux.HandleFunc("/print/raw", rawPrint)
 	mux.HandleFunc("/bluetooth/devices", deviceList)
+	mux.HandleFunc("/usb/devices", usbDeviceList)
 
 	srv = &http.Server{
 		Addr:    "127.0.0.1:9123",
