@@ -11,6 +11,7 @@ type PrinterType string
 
 const (
 	PrinterNetwork   PrinterType = "network"
+	PrinterIP        PrinterType = "ip" // alias for PrinterNetwork; frontend may send "ip"
 	PrinterUSB       PrinterType = "usb"
 	PrinterBluetooth PrinterType = "bluetooth"
 )

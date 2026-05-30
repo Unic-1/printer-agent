@@ -66,8 +66,9 @@ func Print(printerID string, data []byte) error {
 	}
 
 	switch p.Type {
-	case models.PrinterNetwork:
-		return printNetwork(p.Address, data)
+	case models.PrinterNetwork, models.PrinterIP:
+		// Ensure a port is present; ESC/POS printers default to 9100.
+		return printNetwork(ensureNetworkPort(p.Address), data)
 	case models.PrinterUSB:
 		addr := NormalizeUSBAddress(p.Address)
 		if addr == "" {
@@ -79,4 +80,13 @@ func Print(printerID string, data []byte) error {
 	default:
 		return errors.New("unsupported printer type")
 	}
+}
+
+// ensureNetworkPort appends the default ESC/POS port (9100) when the address
+// does not already contain a port number.
+func ensureNetworkPort(address string) string {
+	if strings.Contains(address, ":") {
+		return address
+	}
+	return address + ":9100"
 }
