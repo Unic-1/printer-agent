@@ -11,6 +11,7 @@ import (
 
 	"github.com/kardianos/service"
 
+	"printer-agent/printer"
 	"printer-agent/server"
 )
 
@@ -54,6 +55,8 @@ func (p *program) Start(s service.Service) error {
 
 func (p *program) Stop(s service.Service) error {
 	p.logger.Info("Stopping Aharsuchi Printer Agent...")
+
+	printer.Shutdown()
 
 	if p.srv != nil {
 		// Give in-flight requests up to 5 seconds to complete

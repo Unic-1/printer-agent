@@ -6,33 +6,25 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"strings"
-	"os"
 	"time"
+
 	"printer-agent/models"
 )
 
-var printersConnection = map[string]*models.BluetoothPrinter{}
-
 func OpenBluetoothPrinter(path string) (*models.BluetoothPrinter, error) {
-	log.Println("Open bluettoth printer " + path)
-	// Disable hangup-on-close (HUPCL) BEFORE opening
-	// _ = exec.Command("stty", "-f", path, "hupcl").Run()
-	// time.Sleep(300 * time.Millisecond)
-
-	// // Disable hangup-on-close for runtime stability
-	// if err := exec.Command("stty", "-f", path, "-hupcl").Run(); err != nil {
-	// 	return nil, fmt.Errorf("failed to disable hupcl: %w", err)
-	// }
+	log.Printf("opening bluetooth printer %s", path)
+	resetBluetoothPort(path)
 
 	f, err := os.OpenFile(path, os.O_RDWR, 0666)
 	if err != nil {
 		return nil, err
 	}
 
-	// Let RFCOMM stabilize
-	time.Sleep(800 * time.Millisecond)
+	// Let RFCOMM stabilize after open.
+	time.Sleep(500 * time.Millisecond)
 
 	return &models.BluetoothPrinter{
 		Path: path,
@@ -41,7 +33,7 @@ func OpenBluetoothPrinter(path string) (*models.BluetoothPrinter, error) {
 }
 
 func PrinterBluetooth(p *models.BluetoothPrinter, data []byte) error {
-	fmt.Print("Print via bluetooth", p.Path)
+	log.Printf("printing via bluetooth %s", p.Path)
 	p.Mu.Lock()
 	defer p.Mu.Unlock()
 
@@ -51,7 +43,6 @@ func PrinterBluetooth(p *models.BluetoothPrinter, data []byte) error {
 
 	// Ensure ESC/POS job termination
 	if !bytes.HasSuffix(data, []byte("\n\n")) {
-		fmt.Print("Add suffix")
 		data = append(data, '\n', '\n')
 	}
 
@@ -60,12 +51,15 @@ func PrinterBluetooth(p *models.BluetoothPrinter, data []byte) error {
 		return err
 	}
 
-	fmt.Print("Write successful")
-
 	if n != len(data) {
 		return fmt.Errorf("partial write: %d/%d", n, len(data))
 	}
 
+	if err := drainBluetoothOutput(int(p.File.Fd()), btDrainTimeout); err != nil {
+		return fmt.Errorf("output drain failed: %w", err)
+	}
+
+	log.Printf("bluetooth write successful on %s", p.Path)
 	return nil
 }
 
@@ -77,12 +71,10 @@ func Close(p *models.BluetoothPrinter) error {
 		return nil
 	}
 
-	time.Sleep(1 * time.Second)
-	err := p.File.Close()
+	err := closeBluetoothPort(p.Path, p.File)
 	p.File = nil
 	return err
 }
-
 
 func DiscoverBluetooth() ([]*models.Printer, error) {
 	// 1. Get paired Bluetooth devices
@@ -146,21 +138,23 @@ func DiscoverBluetooth() ([]*models.Printer, error) {
 	return printers, nil
 }
 
-
 func printBluetooth(address string, data []byte) error {
-	// Try cached connection first
-	if p, ok := printersConnection[address]; ok {
-		if err := PrinterBluetooth(p, data); err == nil {
-			time.Sleep(700 * time.Millisecond)
+	var lastErr error
+	for cycle := 1; cycle <= 2; cycle++ {
+		err := printBluetoothOnce(address, data)
+		if err == nil {
 			return nil
-		} else {
-			log.Printf("Print failed on cached connection %s: %v — reconnecting", address, err)
-			Close(p)
-			delete(printersConnection, address)
+		}
+		lastErr = err
+		log.Printf("bluetooth print cycle %d failed for %s: %v", cycle, address, err)
+		if cycle < 2 {
+			time.Sleep(time.Duration(cycle) * time.Second)
 		}
 	}
+	return fmt.Errorf("print failed on %s: %w", address, lastErr)
+}
 
-	// Open a fresh connection (retries with back-off for transient BT pairing delays)
+func printBluetoothOnce(address string, data []byte) error {
 	var p *models.BluetoothPrinter
 	var openErr error
 	for attempt := 1; attempt <= 3; attempt++ {
@@ -168,7 +162,7 @@ func printBluetooth(address string, data []byte) error {
 		if openErr == nil {
 			break
 		}
-		log.Printf("Open bluetooth printer %s attempt %d failed: %v", address, attempt, openErr)
+		log.Printf("open bluetooth printer %s attempt %d failed: %v", address, attempt, openErr)
 		if attempt < 3 {
 			time.Sleep(time.Duration(attempt) * time.Second)
 		}
@@ -176,14 +170,12 @@ func printBluetooth(address string, data []byte) error {
 	if openErr != nil {
 		return fmt.Errorf("failed to open bluetooth printer %s after retries: %w", address, openErr)
 	}
-	printersConnection[address] = p
+	defer Close(p)
 
 	if err := PrinterBluetooth(p, data); err != nil {
-		Close(p)
-		delete(printersConnection, address)
-		return fmt.Errorf("print failed on %s: %w", address, err)
+		return err
 	}
 
-	time.Sleep(700 * time.Millisecond)
+	time.Sleep(350 * time.Millisecond)
 	return nil
 }

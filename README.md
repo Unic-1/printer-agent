@@ -137,7 +137,7 @@ If the list is still empty:
 
 **Note:** `wmic` alone is not used on modern Windows; discovery uses PowerShell `Get-CimInstance`.
 
-**Mac Bluetooth issue** — if printing fails after process restart:
+**Mac Bluetooth** — the agent opens and closes the RFCOMM serial port for each print job and tears down the connection on shutdown, which avoids stale `bluetoothd` sessions after agent restarts. If printing still fails (OS Bluetooth stack wedged), restart the daemon as a last resort:
 
 ```bash
 sudo pkill bluetoothd

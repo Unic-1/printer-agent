@@ -12,6 +12,10 @@ func printNetwork(address string, data []byte) error {
 	}
 	defer conn.Close()
 
+	if err := conn.SetWriteDeadline(time.Now().Add(10 * time.Second)); err != nil {
+		return err
+	}
+
 	_, err = conn.Write(data)
 	return err
 }

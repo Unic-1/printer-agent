@@ -12,6 +12,20 @@ import (
 	"printer-agent/printer"
 )
 
+// writeJSON sends a JSON body with the given status code.
+func writeJSON(w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(v)
+}
+
+// printError is the structured error payload returned on print failures.
+// The frontend parses this to produce a human-readable notification message.
+type printError struct {
+	Error   bool   `json:"error"`
+	Message string `json:"message"`
+}
+
 func health(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("ok"))
 }
@@ -41,7 +55,7 @@ func registerPrinter(w http.ResponseWriter, r *http.Request) {
 func print(w http.ResponseWriter, r *http.Request) {
 	var req models.PrintRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), 400)
+		writeJSON(w, http.StatusBadRequest, printError{Error: true, Message: err.Error()})
 		return
 	}
 
@@ -51,7 +65,10 @@ func print(w http.ResponseWriter, r *http.Request) {
 	data := printer.BuildEscPos(req.Content, req.Cut)
 
 	if err := printer.Print(req.PrinterID, data); err != nil {
-		http.Error(w, err.Error(), 500)
+		writeJSON(w, http.StatusInternalServerError, printError{
+			Error:   true,
+			Message: err.Error(),
+		})
 		return
 	}
 
@@ -62,25 +79,34 @@ func rawPrint(w http.ResponseWriter, r *http.Request) {
 	var req models.RawPrintRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeJSON(w, http.StatusBadRequest, printError{Error: true, Message: err.Error()})
 		return
 	}
 
 	if req.PrinterID == "" || req.Data == "" {
-		http.Error(w, "printerId and data are required", http.StatusBadRequest)
+		writeJSON(w, http.StatusBadRequest, printError{
+			Error:   true,
+			Message: "printerId and data are required",
+		})
 		return
 	}
 
 	// Decode base64 → []byte
 	raw, err := base64.StdEncoding.DecodeString(req.Data)
 	if err != nil {
-		http.Error(w, "invalid base64 data", http.StatusBadRequest)
+		writeJSON(w, http.StatusBadRequest, printError{
+			Error:   true,
+			Message: "invalid base64 data: " + err.Error(),
+		})
 		return
 	}
 
 	// Directly write bytes to printer
 	if err := printer.Print(req.PrinterID, raw); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		writeJSON(w, http.StatusInternalServerError, printError{
+			Error:   true,
+			Message: err.Error(),
+		})
 		return
 	}
 
